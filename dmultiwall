@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # To test:
-# for i in {0..23}; do ./dmultiwall -m -s ~/wallpapers/dmultiwall/island/ -t $i; sleep 1; done
+# for i in {0..23}; do ./dmultiwall -m -s ~/.config/dmultiwall/theme_folder -t $i; sleep 1; done
 
 set -Eeuo pipefail
 trap cleanup SIGINT SIGTERM ERR EXIT
@@ -22,16 +22,16 @@ Script description here.
 
 Available options:
 
--h, --help          Print this help and exit
--v, --verbose       Print script debug info
--q | --quiet        Does not print any output
---no-color          Does not print any colour
--m | --multi        Set multiple monitors wallpapers
--s | --style        Define style folder
--t | --hour         Set specific hour wallpapers
--tq | --quality     Set transition quality (Default 5)
--ts | --speed       Set transition limit (Default 0.01)
-
+-h, --help                  Print this help and exit
+-v, --verbose               Print script debug info
+-q | --quiet                Does not print any output
+--no-color                  Does not print any colour
+-m | --multi                Set multiple monitors wallpapers mode
+-s | --style                Define style folder
+-t | --hour                 Set specific hour wallpapers (Default current hour)
+-tq | --quality             Set transition quality (Default 5)
+-ts | --speed               Set transition limit (Default 0.01)
+-tk | --skip-transactions   Skip transaction (Default false)
 EOF
     exit
 }
@@ -82,6 +82,7 @@ parse_params() {
     # default values of variables set from params
     hour=""
     multi="false"
+    skip_transitions="false"
     transition_quality=5
     transition_speed=0.01
     style=""
@@ -94,6 +95,9 @@ parse_params() {
             -q | --quiet) quiet="true" ;;
             --no-color) NO_COLOR=1 ;;
             -m | --multi) multi="true" ;;
+            -tk | --skip-transactions)
+                skip_transitions="true"
+                ;;
             -s | --style)
                 style="${2-}"
                 shift
@@ -226,11 +230,11 @@ change_wallpaper() {
         wp2_folder="$style/wp2"
         wp2_extension="jpg"
         local wp2="$wp2_folder/${hour}.${wp2_extension}"
-        show_multiple_transitions "${current_wallpapers[0]}" "${wp1}" "${current_wallpapers[1]}" "${wp2}"
+        [[ "${skip_transitions}" == "false" ]] && show_multiple_transitions "${current_wallpapers[0]}" "${wp1}" "${current_wallpapers[1]}" "${wp2}"
         set_multiple_wallpapers "${wp1}" "${wp2}"
     else
         msg "Setting single wallpapers, hour: ${hour}"
-        show_single_transition "${current_wallpapers[0]}" "${wp1}"
+        [[ "${skip_transitions}" == "false" ]] &&  show_single_transition "${current_wallpapers[0]}" "${wp1}"
         set_single_wallpaper "${wp1}"
     fi
 }
@@ -250,5 +254,5 @@ if [ -z "${hour}"  ]; then
     hour=$(date +"%-H")
 fi
 
-mkdir -p "${TEMP_TRANSITION_FOLDER}"
+[ ! -e ${TEMP_TRANSITION_FOLDER} ] && mkdir -p "${TEMP_TRANSITION_FOLDER}"
 change_wallpaper "${hour}"
