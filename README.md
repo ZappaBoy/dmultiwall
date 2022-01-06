@@ -1,10 +1,11 @@
 # Dmultiwall
 This is a simple bash script to set the multiple wallpapers dynamically based on the current hour.
 
+<img alt="Demo gif" src="https://media.giphy.com/media/aRE4zv42Vq5zkLvJrO/giphy.gif" width="100%"/>
+
 # Acknowledgements
 The initial idea was inspired by [adi1090x/dynamic-wallpaper](https://github.com/adi1090x/dynamic-wallpaper) but the script is totally differ drom **dwall**. The scipt is created starting from a template of Maciej Radzikowski (https://betterdev.blog/minimal-safe-bash-script-template/). Also in [adi1090x/dynamic-wallpaper](https://github.com/adi1090x/dynamic-wallpaper) you can find a lot of 24h wallpapers.
 
-<img alt="Demo gif" src="https://media.giphy.com/media/aRE4zv42Vq5zkLvJrO/giphy.gif" width="100%"/>
 # How to install and configure
 ## Download the script
 ```shell
