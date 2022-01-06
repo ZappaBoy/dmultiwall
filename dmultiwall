@@ -1,0 +1,254 @@
+#!/usr/bin/env bash
+
+# To test:
+# for i in {0..23}; do ./dmultiwall -m -s ~/wallpapers/dmultiwall/island/ -t $i; sleep 1; done
+
+set -Eeuo pipefail
+trap cleanup SIGINT SIGTERM ERR EXIT
+
+TEMP_TRANSITION_FOLDER="/tmp/dmultiwall/"
+CURRENT_WP1_PREFIX="current_wp1"
+WP1_PREFIX="wp1"
+CURRENT_WP2_PREFIX="current_wp2"
+WP2_PREFIX="wp2"
+
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+
+usage() {
+    cat <<EOF
+Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-v] [-f] [-q] [-m] [-s] [-t] [-tq] [-ts] [--nocolor] -s style_folder
+
+Script description here.
+
+Available options:
+
+-h, --help          Print this help and exit
+-v, --verbose       Print script debug info
+-q | --quiet        Does not print any output
+--no-color          Does not print any colour
+-m | --multi        Set multiple monitors wallpapers
+-s | --style        Define style folder
+-t | --hour         Set specific hour wallpapers
+-tq | --quality     Set transition quality (Default 5)
+-ts | --speed       Set transition limit (Default 0.01)
+
+EOF
+    exit
+}
+
+cleanup() {
+    trap - SIGINT SIGTERM ERR EXIT
+
+    if [ -d "${TEMP_TRANSITION_FOLDER}" ]; then
+        rm -r "${TEMP_TRANSITION_FOLDER}" || rmdir "${TEMP_TRANSITION_FOLDER}"
+    fi
+}
+
+setup_colors() {
+    if [[ -t 2 ]] && [[ -z "${NO_COLOR-}" ]] && [[ "${TERM-}" != "dumb" ]]; then
+        NOFORMAT='\033[0m'
+        RED='\033[0;31m'
+        GREEN='\033[0;32m'
+        ORANGE='\033[0;33m'
+        BLUE='\033[0;34m'
+        PURPLE='\033[0;35m'
+        CYAN='\033[0;36m'
+        YELLOW='\033[1;33m'
+    else
+        NOFORMAT=''
+        RED=''
+        GREEN=''
+        ORANGE=''
+        BLUE=''
+        PURPLE=''
+        CYAN=''
+        YELLOW=''
+    fi
+}
+
+msg() {
+    [ "${quiet}" == "false" ] && echo >&2 -e "${1-''}"
+    return 0
+}
+
+die() {
+    local msg=$1
+    local code=${2-1} # default exit status 1
+    msg "$msg"
+    exit "$code"
+}
+
+parse_params() {
+    # default values of variables set from params
+    hour=""
+    multi="false"
+    transition_quality=5
+    transition_speed=0.01
+    style=""
+    quiet="false"
+
+    while :; do
+        case "${1-}" in
+            -h | --help) usage ;;
+            -v | --verbose) set -x ;;
+            -q | --quiet) quiet="true" ;;
+            --no-color) NO_COLOR=1 ;;
+            -m | --multi) multi="true" ;;
+            -s | --style)
+                style="${2-}"
+                shift
+                ;;
+            -t | --hour)
+                hour="${2-}"
+                shift
+                ;;
+            -tq | --quality)
+                transition_quality="${2-}"
+                shift
+                ;;
+            -ts | --speed)
+                transition_speed="${2-}"
+                shift
+                ;;
+            -?*) die "Unknown option: $1" ;;
+            *) break ;;
+        esac
+        shift
+    done
+
+    args=("$@")
+
+    # check required params and arguments
+    [[ -z "${style-}" ]] && usage
+
+    return 0
+}
+
+set_single_wallpaper() {
+    local wp1=${1-""}
+    [ -z "${wp1}" ] && die "No wallpaper to set"
+    feh --bg-scale --no-xinerama "${wp1}"
+}
+
+set_multiple_wallpapers() {
+    local wp1=${1-""}
+    local wp2=${2-""}
+    [ -z "${wp1}" ] && die "No first wallpaper to set"
+    [ -z "${wp2}" ] && die "No second wallpaper to set"
+    feh --bg-fill "${wp1}" --bg-fill "${wp2}"
+}
+
+
+create_transition_images() {
+    local wp=${1-""}
+    local prefix=${2-""}
+    [ -z "${wp}" ] && die "No wallpaper for image transition creation"
+    wp_basename=$(basename "${wp}")
+
+    for i in $( seq 1 "${transition_quality}" ); do
+        strength=$( echo "0.3*${i}" | bc)
+        geometry="0x${strength}"
+        convert -scale 1% -blur "${geometry}" -resize 1000% "$wp" "${TEMP_TRANSITION_FOLDER}$i-${prefix}-${wp_basename}"
+    done
+}
+
+show_single_transition() {
+    local current_wp1=${1-""}
+    local wp1=${2-""}
+    [ -z "${current_wp1}" ] && die "No first wallpaper for transition"
+    [ -z "${wp1}" ] && die "No second wallpaper for transition"
+    current_wp1_basename=$(basename "${current_wp1}")
+    wp1_basename=$(basename "${wp1}")
+
+    create_transition_images "${current_wp1}" "${CURRENT_WP1_PREFIX}"
+    create_transition_images "${wp1}" "wp1" "${WP1_PREFIX}"
+
+    # Show blur for wallpaper to unset
+    for i in $( seq 1 "${transition_quality}" ); do
+        set_single_wallpaper "${TEMP_TRANSITION_FOLDER}$i-${CURRENT_WP1_PREFIX}-${current_wp1_basename}"
+        sleep "${transition_speed}"
+    done
+
+    # Show reverse image blur for wallapper to really set
+    for i in $( seq 1 "${transition_quality}" ); do
+        set_single_wallpaper "${TEMP_TRANSITION_FOLDER}$((transition_quality - i + 1))-${WP1_PREFIX}-${wp1_basename}"
+        sleep "${transition_speed}"
+    done
+}
+
+show_multiple_transitions() {
+    local current_wp1=${1-""}
+    local wp1=${2-""}
+    local current_wp2=${3-""}
+    local wp2=${4-""}
+
+    [ -z "${current_wp1}" ] && die "No first wallpaper for transition"
+    [ -z "${wp1}" ] && die "No second wallpaper for transition"
+    [ -z "${current_wp2}" ] && die "No third wallpaper for transition"
+    [ -z "${wp2}" ] && die "No fourth wallpaper for transition"
+
+    current_wp1_basename=$(basename "${current_wp1}")
+    wp1_basename=$(basename "${wp1}")
+    current_wp2_basename=$(basename "${current_wp2}")
+    wp2_basename=$(basename "${wp2}")
+
+    create_transition_images "${current_wp1}" ${CURRENT_WP1_PREFIX}
+    create_transition_images "${wp1}" ${WP1_PREFIX}
+    create_transition_images "${current_wp2}" ${CURRENT_WP2_PREFIX}
+    create_transition_images "${wp2}" ${WP2_PREFIX}
+
+    # Show blur for wallpaper to unset
+    for i in $( seq 1 "${transition_quality}" ); do
+        set_multiple_wallpapers "${TEMP_TRANSITION_FOLDER}$i-${CURRENT_WP1_PREFIX}-${current_wp1_basename}" "${TEMP_TRANSITION_FOLDER}$i-${CURRENT_WP2_PREFIX}-${current_wp2_basename}"
+        sleep "${transition_speed}"
+    done
+
+    # Show reverse image blur for wallapper to really set
+    for i in $( seq 1 "${transition_quality}" ); do
+        set_multiple_wallpapers "${TEMP_TRANSITION_FOLDER}$((transition_quality - i + 1))-${WP1_PREFIX}-${wp1_basename}" "${TEMP_TRANSITION_FOLDER}$((transition_quality - i + 1))-${WP2_PREFIX}-${wp2_basename}"
+        sleep "${transition_speed}"
+    done
+}
+
+
+change_wallpaper() {
+    hour="${1:-}"
+
+    current_wallpapers_paths=$(grep -oE '.(\/.+?) ' "${HOME}/.fehbg" | tr -d \'\")
+    read -r -a current_wallpapers <<< "${current_wallpapers_paths}"
+
+    wp1_folder="$style/wp1"
+    wp1_extension="jpg"
+    local wp1="$wp1_folder/${hour}.${wp1_extension}"
+
+    if [[ "${multi}" == "true" ]]; then
+        msg "Setting multi wallpapers, hour: ${hour}"
+        wp2_folder="$style/wp2"
+        wp2_extension="jpg"
+        local wp2="$wp2_folder/${hour}.${wp2_extension}"
+        show_multiple_transitions "${current_wallpapers[0]}" "${wp1}" "${current_wallpapers[1]}" "${wp2}"
+        set_multiple_wallpapers "${wp1}" "${wp2}"
+    else
+        msg "Setting single wallpapers, hour: ${hour}"
+        show_single_transition "${current_wallpapers[0]}" "${wp1}"
+        set_single_wallpaper "${wp1}"
+    fi
+}
+
+parse_params "$@"
+setup_colors
+
+msg "${RED}Read parameters:${NOFORMAT}"
+msg "- Multi: ${multi}"
+msg "- Style: ${style}"
+msg "- Hour: ${hour}"
+msg "- Transition quality: ${transition_quality}"
+msg "- Transition speed: ${transition_speed}"
+msg "- Quiet: ${quiet}"
+
+if [ -z "${hour}"  ]; then
+    hour=$(date +"%-H")
+fi
+
+mkdir -p "${TEMP_TRANSITION_FOLDER}"
+change_wallpaper "${hour}"
