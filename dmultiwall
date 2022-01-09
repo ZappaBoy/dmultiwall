@@ -6,13 +6,15 @@
 set -Eeuo pipefail
 trap cleanup SIGINT SIGTERM ERR EXIT
 
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+TRUE=1
+FALSE=0
+
 TEMP_TRANSITION_FOLDER="/tmp/dmultiwall/"
 CURRENT_WP1_PREFIX="current_wp1"
 WP1_PREFIX="wp1"
 CURRENT_WP2_PREFIX="current_wp2"
 WP2_PREFIX="wp2"
-
-script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 
 usage() {
     cat <<EOF
@@ -67,7 +69,7 @@ setup_colors() {
 }
 
 msg() {
-    [ "${quiet}" == "false" ] && echo >&2 -e "${1-''}"
+    [ "${quiet}" == "${FALSE}" ] && echo >&2 -e "${1-''}"
     return 0
 }
 
@@ -81,22 +83,22 @@ die() {
 parse_params() {
     # default values of variables set from params
     hour=""
-    multi="false"
-    skip_transitions="false"
+    multi="${FALSE}"
+    skip_transitions="${FALSE}"
     transition_quality=5
     transition_speed=0.01
     style=""
-    quiet="false"
+    quiet="${FALSE}"
 
     while :; do
         case "${1-}" in
             -h | --help) usage ;;
             -v | --verbose) set -x ;;
-            -q | --quiet) quiet="true" ;;
+            -q | --quiet) quiet="${TRUE}" ;;
             --no-color) NO_COLOR=1 ;;
-            -m | --multi) multi="true" ;;
+            -m | --multi) multi="${TRUE}" ;;
             -tk | --skip-transactions)
-                skip_transitions="true"
+                skip_transitions="${TRUE}"
                 ;;
             -s | --style)
                 style="${2-}"
@@ -214,6 +216,17 @@ show_multiple_transitions() {
     done
 }
 
+are_different_files() {
+    [ "$(cmp "${1}" "${2}")" != "" ] && echo "${TRUE}" || echo "${FALSE}"
+}
+
+get_wallpaper_extension() {
+    folder="${1}"
+    file="$(ls "${folder}" | head -1)"
+    filename=$(basename -- "${file}")
+    extension="${filename##*.}"
+    echo "${extension}"
+}
 
 change_wallpaper() {
     hour="${1:-}"
@@ -222,20 +235,33 @@ change_wallpaper() {
     read -r -a current_wallpapers <<< "${current_wallpapers_paths}"
 
     wp1_folder="$style/wp1"
-    wp1_extension="jpg"
+    wp1_extension=$(get_wallpaper_extension "${wp1_folder}")
     local wp1="$wp1_folder/${hour}.${wp1_extension}"
 
-    if [[ "${multi}" == "true" ]]; then
-        msg "Setting multi wallpapers, hour: ${hour}"
+    are_different_wp1=$(are_different_files "${current_wallpapers[0]}" "${wp1}")
+
+    if [[ "${multi}" == "${TRUE}" ]]; then
         wp2_folder="$style/wp2"
-        wp2_extension="jpg"
+        wp2_extension=$(get_wallpaper_extension "${wp2_folder}")
         local wp2="$wp2_folder/${hour}.${wp2_extension}"
-        [[ "${skip_transitions}" == "false" ]] && show_multiple_transitions "${current_wallpapers[0]}" "${wp1}" "${current_wallpapers[1]}" "${wp2}"
-        set_multiple_wallpapers "${wp1}" "${wp2}"
+
+        are_different_wp2=$(are_different_files "${current_wallpapers[1]}" "${wp2}")
+
+        if [[ "${are_different_wp1}" == "${TRUE}" || "${are_different_wp2}" == "${TRUE}" ]]; then
+            msg "Setting multi wallpapers, hour: ${hour}"
+            [[ "${skip_transitions}" == "${FALSE}" ]] && show_multiple_transitions "${current_wallpapers[0]}" "${wp1}" "${current_wallpapers[1]}" "${wp2}"
+            set_multiple_wallpapers "${wp1}" "${wp2}"
+        else
+            msg "Wallpapers are the same, no changes done."
+        fi
     else
-        msg "Setting single wallpapers, hour: ${hour}"
-        [[ "${skip_transitions}" == "false" ]] &&  show_single_transition "${current_wallpapers[0]}" "${wp1}"
-        set_single_wallpaper "${wp1}"
+        if [[ "${are_different_wp1}" == "${TRUE}" ]]; then
+            msg "Setting single wallpapers, hour: ${hour}"
+            [[ "${skip_transitions}" == "${FALSE}" ]] &&  show_single_transition "${current_wallpapers[0]}" "${wp1}"
+            set_single_wallpaper "${wp1}"
+        else
+            msg "Wallpapers are the same, no changes done."
+        fi
     fi
 }
 
