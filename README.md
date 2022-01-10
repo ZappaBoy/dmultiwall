@@ -90,14 +90,15 @@ Available options:
 
 -h, --help                  Print this help and exit
 -v, --verbose               Print script debug info
--q | --quiet                Does not print any output
+-q  | --quiet               Does not print any output
 --no-color                  Does not print any colour
--m | --multi                Set multiple monitors wallpapers
--s | --style                Define style folder
--t | --hour                 Set specific hour wallpapers
+-m  | --multi               Set multiple monitors wallpapers
+-s  | --style               Define style folder
+-t  | --hour                Set specific hour wallpapers
 -tq | --quality             Set transition quality (Default 5)
 -ts | --speed               Set transition limit (Default 0.01)
 -tk | --skip-transactions   Skip transaction (Default false)
+-f  | --force-setting       Force wallpapers setting (Recommended to at startup)
 
 ```
 

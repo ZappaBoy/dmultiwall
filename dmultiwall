@@ -26,14 +26,15 @@ Available options:
 
 -h, --help                  Print this help and exit
 -v, --verbose               Print script debug info
--q | --quiet                Does not print any output
+-q  | --quiet               Does not print any output
 --no-color                  Does not print any colour
--m | --multi                Set multiple monitors wallpapers mode
--s | --style                Define style folder
--t | --hour                 Set specific hour wallpapers (Default current hour)
+-m  | --multi               Set multiple monitors wallpapers mode
+-s  | --style               Define style folder
+-t  | --hour                Set specific hour wallpapers (Default current hour)
 -tq | --quality             Set transition quality (Default 5)
 -ts | --speed               Set transition limit (Default 0.01)
 -tk | --skip-transactions   Skip transaction (Default false)
+-f  | --force-setting       Force wallpapers setting (Recommended to at startup)
 EOF
     exit
 }
@@ -89,6 +90,7 @@ parse_params() {
     transition_speed=0.01
     style=""
     quiet="${FALSE}"
+    force_setting="${FALSE}"
 
     while :; do
         case "${1-}" in
@@ -99,6 +101,9 @@ parse_params() {
             -m | --multi) multi="${TRUE}" ;;
             -tk | --skip-transactions)
                 skip_transitions="${TRUE}"
+                ;;
+            -f | --force-setting)
+                force_setting="${TRUE}"
                 ;;
             -s | --style)
                 style="${2-}"
@@ -247,7 +252,7 @@ change_wallpaper() {
 
         are_different_wp2=$(are_different_files "${current_wallpapers[1]}" "${wp2}")
 
-        if [[ "${are_different_wp1}" == "${TRUE}" || "${are_different_wp2}" == "${TRUE}" ]]; then
+        if [[ "${force_setting}" == "${TRUE}" || "${are_different_wp1}" == "${TRUE}" || "${are_different_wp2}" == "${TRUE}" ]]; then
             msg "Setting multi wallpapers, hour: ${hour}"
             [[ "${skip_transitions}" == "${FALSE}" ]] && show_multiple_transitions "${current_wallpapers[0]}" "${wp1}" "${current_wallpapers[1]}" "${wp2}"
             set_multiple_wallpapers "${wp1}" "${wp2}"
@@ -255,7 +260,7 @@ change_wallpaper() {
             msg "Wallpapers are the same, no changes done."
         fi
     else
-        if [[ "${are_different_wp1}" == "${TRUE}" ]]; then
+        if [[ "${force_setting}" == "${TRUE}" || "${are_different_wp1}" == "${TRUE}" ]]; then
             msg "Setting single wallpapers, hour: ${hour}"
             [[ "${skip_transitions}" == "${FALSE}" ]] &&  show_single_transition "${current_wallpapers[0]}" "${wp1}"
             set_single_wallpaper "${wp1}"
