@@ -110,4 +110,6 @@ dmultiwall -m -s ~/.config/dmultiwall/new_theme_folder --skip-transactions
 ```
 
 ## Image format
-In the actual version only `.jpg` images are supported. In the newer version the support will be added (If you does not want to wait you can simply change extensions in the script).
+Added automatic image extension identification in e8ff27f902c9e3f05da9b9e783ee26069871725d (Image formats supported are the same as [feh](http://manpages.org/feh)). 
+
+
