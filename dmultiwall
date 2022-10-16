@@ -222,6 +222,9 @@ show_multiple_transitions() {
 }
 
 are_different_files() {
+    [[ ! -f "${1}" ]] && echo "${TRUE}" && return
+    [[ ! -f "${2}" ]] && echo "${TRUE}" && return
+
     [ "$(cmp "${1}" "${2}")" != "" ] && echo "${TRUE}" || echo "${FALSE}"
 }
 
@@ -236,7 +239,7 @@ get_wallpaper_extension() {
 change_wallpaper() {
     hour="${1:-}"
 
-    current_wallpapers_paths=$(grep -oE '.(\/.+?) ' "${HOME}/.fehbg" | tr -d \'\")
+    current_wallpapers_paths=$(grep -oE '.(/.+?) ' "${HOME}/.fehbg" | tr -d \'\")
     read -r -a current_wallpapers <<< "${current_wallpapers_paths}"
 
     wp1_folder="$style/wp1"
@@ -261,7 +264,7 @@ change_wallpaper() {
         fi
     else
         if [[ "${force_setting}" == "${TRUE}" || "${are_different_wp1}" == "${TRUE}" ]]; then
-            msg "Setting single wallpapers, hour: ${hour}"
+            msg "Setting single wallpaper, hour: ${hour}"
             [[ "${skip_transitions}" == "${FALSE}" ]] &&  show_single_transition "${current_wallpapers[0]}" "${wp1}"
             set_single_wallpaper "${wp1}"
         else
