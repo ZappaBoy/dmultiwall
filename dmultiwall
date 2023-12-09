@@ -253,7 +253,12 @@ change_wallpaper() {
         wp2_extension=$(get_wallpaper_extension "${wp2_folder}")
         local wp2="$wp2_folder/${hour}.${wp2_extension}"
 
-        are_different_wp2=$(are_different_files "${current_wallpapers[1]}" "${wp2}")
+
+        if [[ ${#current_wallpapers[@]} -gt 1 ]]; then
+            are_different_wp2=$(are_different_files "${current_wallpapers[1]}" "${wp2}")
+        else
+            are_different_wp2="${TRUE}"
+        fi
 
         if [[ "${force_setting}" == "${TRUE}" || "${are_different_wp1}" == "${TRUE}" || "${are_different_wp2}" == "${TRUE}" ]]; then
             msg "Setting multi wallpapers, hour: ${hour}"
