@@ -159,7 +159,7 @@ create_transition_images() {
     for i in $( seq 1 "${transition_quality}" ); do
         strength=$( echo "0.3*${i}" | bc)
         geometry="0x${strength}"
-        convert -scale 1% -blur "${geometry}" -resize 1000% "$wp" "${TEMP_TRANSITION_FOLDER}$i-${prefix}-${wp_basename}"
+        magick "$wp" -scale 1% -blur "${geometry}" -resize 1000% "${TEMP_TRANSITION_FOLDER}$i-${prefix}-${wp_basename}"
     done
 }
 
