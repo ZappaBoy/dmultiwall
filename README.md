@@ -29,9 +29,9 @@ In the `wp` folders previously created you need to put 24 images called starting
 ```shell
 theme_folder/
 ├── wp1
-│   ├── 0.jpg
+│   ├── 0.jpg
 |   ...
-│   ├── 23.jpg
+│   ├── 23.jpg
 └── wp2
     ├── 0.jpg
     ...
