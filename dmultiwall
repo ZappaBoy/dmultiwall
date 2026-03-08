@@ -238,9 +238,14 @@ get_wallpaper_extension() {
 
 change_wallpaper() {
     hour="${1:-}"
+    feh_bg_path="${HOME}/.fehbg"
 
-    current_wallpapers_paths=$(grep -oE '.(/.+?) ' "${HOME}/.fehbg" | tr -d \'\")
-    read -r -a current_wallpapers <<< "${current_wallpapers_paths}"
+    if ! [ -f "$feh_bg_path" ]; then
+        current_wallpapers=("MISSING" "MISSING")
+    else
+        current_wallpapers_paths=$(grep -oE '.(/.+?) ' "$feh_bg_path" | tr -d \'\")
+        read -r -a current_wallpapers <<< "${current_wallpapers_paths}"
+    fi
 
     wp1_folder="$style/wp1"
     wp1_extension=$(get_wallpaper_extension "${wp1_folder}")
