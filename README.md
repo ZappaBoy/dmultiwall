@@ -17,7 +17,12 @@ wget https://raw.githubusercontent.com/ZappaBoy/dmultiwall/main/dmultiwall
 install dmultiwall ~/.local/bin
 ```
 
-## Prepare theme folder
+or using `AUR` if you are using `Arch Linux`:
+```shell
+yay -S dmultiwall-git
+```
+
+## Prepare the theme folder
 You need to create a style folder and then create other two folders called `wp1` and `wp2`.
 ```shell
 mkdir -p ~/.config/dmultiwall/theme_folder/wp1
