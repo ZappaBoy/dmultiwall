@@ -239,17 +239,22 @@ get_wallpaper_extension() {
 change_wallpaper() {
     hour="${1:-}"
     feh_bg_path="${HOME}/.fehbg"
+    current_wallpapers=("MISSING" "MISSING")
 
-    if ! [ -f "$feh_bg_path" ]; then
-        current_wallpapers=("MISSING" "MISSING")
-    else
-        current_wallpapers_paths=$(grep -oE '.(/.+?) ' "$feh_bg_path" | tr -d \'\")
-        read -r -a current_wallpapers <<< "${current_wallpapers_paths}"
+    if [ -f "$feh_bg_path" ]; then
+        current_wallpapers_paths=$(grep -oE '.(/.+?) ' "$feh_bg_path" | tr -d \'\" || true)
+        if [ -n "${current_wallpapers_paths}" ]; then
+          read -r -a current_wallpapers <<< "${current_wallpapers_paths}"
+        fi
     fi
 
     wp1_folder="$style/wp1"
     wp1_extension=$(get_wallpaper_extension "${wp1_folder}")
     local wp1="$wp1_folder/${hour}.${wp1_extension}"
+
+    if [[ -f "${current_wallpapers[0]}" && -f "${current_wallpapers[1]}" ]]; then
+        current_wallpapers=("$wp1" "MISSING")
+    fi
 
     are_different_wp1=$(are_different_files "${current_wallpapers[0]}" "${wp1}")
 
@@ -258,6 +263,9 @@ change_wallpaper() {
         wp2_extension=$(get_wallpaper_extension "${wp2_folder}")
         local wp2="$wp2_folder/${hour}.${wp2_extension}"
 
+        if [[ -f "${current_wallpapers[1]}" ]]; then
+            current_wallpapers=("${current_wallpapers[0]}" "$wp2")
+        fi
 
         if [[ ${#current_wallpapers[@]} -gt 1 ]]; then
             are_different_wp2=$(are_different_files "${current_wallpapers[1]}" "${wp2}")
