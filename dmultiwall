@@ -252,7 +252,9 @@ change_wallpaper() {
     wp1_extension=$(get_wallpaper_extension "${wp1_folder}")
     local wp1="$wp1_folder/${hour}.${wp1_extension}"
 
-    if ! [[ -f "${current_wallpapers[0]}" && -f "${current_wallpapers[1]}" ]]; then
+    if ! [[ -z "$current_wallpapers" ]]; then
+        current_wallpapers=("MISSING" "MISSING")
+    elif ! [[ -f "${current_wallpapers[0]}" && -f "${current_wallpapers[1]}" ]]; then
         current_wallpapers=("$wp1" "MISSING")
     fi
 
