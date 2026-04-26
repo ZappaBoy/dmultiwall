@@ -9,6 +9,7 @@ trap cleanup SIGINT SIGTERM ERR EXIT
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 TRUE=1
 FALSE=0
+MISSING="MISSING"
 
 TEMP_TRANSITION_FOLDER="/tmp/dmultiwall/"
 CURRENT_WP1_PREFIX="current_wp1"
@@ -156,6 +157,10 @@ create_transition_images() {
     [ -z "${wp}" ] && die "No wallpaper for image transition creation"
     wp_basename=$(basename "${wp}")
 
+    if [ ! -f "${wp}" ]; then
+        return
+    fi
+
     for i in $( seq 1 "${transition_quality}" ); do
         strength=$( echo "0.3*${i}" | bc)
         geometry="0x${strength}"
@@ -239,7 +244,7 @@ get_wallpaper_extension() {
 change_wallpaper() {
     hour="${1:-}"
     feh_bg_path="${HOME}/.fehbg"
-    current_wallpapers=("MISSING" "MISSING")
+    current_wallpapers=("$MISSING" "$MISSING")
 
     if [ -f "$feh_bg_path" ]; then
         current_wallpapers_paths=$(grep -oE '.(/.+?) ' "$feh_bg_path" | tr -d \'\" || true)
@@ -253,9 +258,9 @@ change_wallpaper() {
     local wp1="$wp1_folder/${hour}.${wp1_extension}"
 
     if ! [[ -z "$current_wallpapers" ]]; then
-        current_wallpapers=("MISSING" "MISSING")
+        current_wallpapers=("$MISSING" "$MISSING")
     elif ! [[ -f "${current_wallpapers[0]}" && -f "${current_wallpapers[1]}" ]]; then
-        current_wallpapers=("$wp1" "MISSING")
+        current_wallpapers=("$wp1" "$MISSING")
     fi
 
     are_different_wp1=$(are_different_files "${current_wallpapers[0]}" "${wp1}")
