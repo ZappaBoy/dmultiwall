@@ -4,7 +4,9 @@
 # for i in {0..23}; do ./dmultiwall -m -s ~/.config/dmultiwall/theme_folder -t $i; sleep 1; done
 
 set -Eeuo pipefail
-trap cleanup SIGINT SIGTERM ERR EXIT
+trap cleanup ERR EXIT
+trap 'exit 130' SIGINT
+trap 'exit 143' SIGTERM
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 TRUE=1
@@ -16,6 +18,8 @@ CURRENT_WP1_PREFIX="current_wp1"
 WP1_PREFIX="wp1"
 CURRENT_WP2_PREFIX="current_wp2"
 WP2_PREFIX="wp2"
+DAEMON_POLL_SECONDS=60
+WAYLAND_START_RETRIES=50
 
 usage() {
     cat <<EOF
@@ -36,6 +40,11 @@ Available options:
 -ts | --speed               Set transition limit (Default 0.01)
 -tk | --skip-transactions   Skip transaction (Default false)
 -f  | --force-setting       Force wallpapers setting (Recommended to at startup)
+-o  | --outputs             Wayland outputs for wp1,wp2 in multi mode, e.g. DP-1,DP-2 (list them with: awww query)
+-d  | --daemon              Keep running and change wallpapers every hour (replaces the cronjob)
+
+On Wayland (WAYLAND_DISPLAY set) wallpapers are set with awww, which also does the transition.
+On Xorg they are set with feh.
 EOF
     exit
 }
@@ -92,6 +101,8 @@ parse_params() {
     style=""
     quiet="${FALSE}"
     force_setting="${FALSE}"
+    outputs_param=""
+    daemon="${FALSE}"
 
     while :; do
         case "${1-}" in
@@ -122,6 +133,11 @@ parse_params() {
                 transition_speed="${2-}"
                 shift
                 ;;
+            -o | --outputs)
+                outputs_param="${2-}"
+                shift
+                ;;
+            -d | --daemon) daemon="${TRUE}" ;;
             -?*) die "Unknown option: $1" ;;
             *) break ;;
         esac
@@ -136,10 +152,39 @@ parse_params() {
     return 0
 }
 
+setup_wayland() {
+    wayland="${FALSE}"
+    [[ -z "${WAYLAND_DISPLAY-}" ]] && return 0
+    wayland="${TRUE}"
+
+    command -v awww &>/dev/null || die "awww is required to set wallpapers on Wayland"
+    if [[ "${multi}" == "${TRUE}" ]]; then
+        IFS=',' read -r -a outputs <<< "${outputs_param}"
+        [[ ${#outputs[@]} -eq 2 ]] || die "Multi mode on Wayland needs two outputs, e.g. -o DP-1,DP-2 (list them with: awww query)"
+    fi
+
+    # awww animates natively: it replaces the blur transition, --skip-transactions makes it instant
+    awww_args=()
+    [[ "${skip_transitions}" == "${TRUE}" ]] && awww_args=(-t none)
+    skip_transitions="${TRUE}"
+    force_setting="${TRUE}"
+
+    awww query &>/dev/null || setsid -f awww-daemon &>/dev/null
+    for _ in $(seq 1 "${WAYLAND_START_RETRIES}"); do
+        awww query &>/dev/null && return 0
+        sleep 0.2
+    done
+    die "awww-daemon is not responding"
+}
+
 set_single_wallpaper() {
     local wp1=${1-""}
     [ -z "${wp1}" ] && die "No wallpaper to set"
-    feh --bg-scale --no-xinerama "${wp1}"
+    if [[ "${wayland}" == "${TRUE}" ]]; then
+        awww img "${awww_args[@]}" "${wp1}"
+    else
+        feh --bg-scale --no-xinerama "${wp1}"
+    fi
 }
 
 set_multiple_wallpapers() {
@@ -147,7 +192,12 @@ set_multiple_wallpapers() {
     local wp2=${2-""}
     [ -z "${wp1}" ] && die "No first wallpaper to set"
     [ -z "${wp2}" ] && die "No second wallpaper to set"
-    feh --bg-fill "${wp1}" --bg-fill "${wp2}"
+    if [[ "${wayland}" == "${TRUE}" ]]; then
+        awww img "${awww_args[@]}" -o "${outputs[0]}" "${wp1}"
+        awww img "${awww_args[@]}" -o "${outputs[1]}" "${wp2}"
+    else
+        feh --bg-fill "${wp1}" --bg-fill "${wp2}"
+    fi
 }
 
 
@@ -300,6 +350,7 @@ change_wallpaper() {
 
 parse_params "$@"
 setup_colors
+setup_wayland
 
 msg "${RED}Read parameters:${NOFORMAT}"
 msg "- Multi: ${multi}"
@@ -308,6 +359,22 @@ msg "- Hour: ${hour}"
 msg "- Transition quality: ${transition_quality}"
 msg "- Transition speed: ${transition_speed}"
 msg "- Quiet: ${quiet}"
+msg "- Wayland: ${wayland}"
+msg "- Daemon: ${daemon}"
+
+if [[ "${daemon}" == "${TRUE}" ]]; then
+    last_hour=""
+    while :; do
+        hour=$(date +"%-H")
+        if [[ "${hour}" != "${last_hour}" ]]; then
+            mkdir -p "${TEMP_TRANSITION_FOLDER}"
+            change_wallpaper "${hour}"
+            last_hour="${hour}"
+        fi
+        # Polled instead of sleeping until the next hour, so it catches up right after a suspend
+        sleep "${DAEMON_POLL_SECONDS}"
+    done
+fi
 
 if [ -z "${hour}"  ]; then
     hour=$(date +"%-H")

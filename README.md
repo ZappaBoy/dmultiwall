@@ -72,8 +72,25 @@ dmultiwall -m -s ~/.config/dmultiwall/theme_folder -ts 0.005 -tq 4
 for i in {0..23}; do dmultiwall -m -s ~/.config/dmultiwall/theme_folder -t $i; sleep 0.3; done
 ```
 
+## Wayland (Sway, Niri, ...)
+When `WAYLAND_DISPLAY` is set, wallpapers are set with [awww](https://codeberg.org/LGFae/awww) (formerly `swww`) instead of `feh`. `awww-daemon` is started automatically if it isn't running, and awww's own fade replaces the blur transition (`-tk` makes the change instant). In multi mode you must name the two outputs that get `wp1` and `wp2` (list them with `awww query`):
+```shell
+dmultiwall -m -s ~/.config/dmultiwall/theme_folder -o DP-1,DP-2
+```
+
+## Run as a daemon
+With `-d` the script keeps running and changes the wallpapers when the hour changes (checked every minute, so it also catches up after a suspend). This replaces the cronjob and works on both Xorg and Wayland. Start it once from your window manager:
+```shell
+# i3
+exec --no-startup-id dmultiwall -m -s ~/.config/dmultiwall/theme_folder -f -d -q
+# sway
+exec dmultiwall -m -s ~/.config/dmultiwall/theme_folder -o DP-1,DP-2 -d -q
+# niri
+spawn-sh-at-startup "dmultiwall -m -s ~/.config/dmultiwall/theme_folder -o DP-1,DP-2 -d -q"
+```
+
 ## Create a cronjob
-If you want to set the wallpapers every hour you can create a simple crontab as follow. Be sure that the install path of the script is in the cronjob PATH and that you run `dmultiwall` setting `DISPLAY=:0` as in the example.
+Xorg only, the daemon mode above is the simpler alternative. If you want to set the wallpapers every hour you can create a simple crontab as follow. Be sure that the install path of the script is in the cronjob PATH and that you run `dmultiwall` setting `DISPLAY=:0` as in the example.
 ```shell 
 crontab -e
 ```
@@ -104,7 +121,11 @@ Available options:
 -ts | --speed               Set transition limit (Default 0.01)
 -tk | --skip-transactions   Skip transaction (Default false)
 -f  | --force-setting       Force wallpapers setting (Recommended to at startup)
+-o  | --outputs             Wayland outputs for wp1,wp2 in multi mode, e.g. DP-1,DP-2 (list them with: awww query)
+-d  | --daemon              Keep running and change wallpapers every hour (replaces the cronjob)
 
+On Wayland (WAYLAND_DISPLAY set) wallpapers are set with awww, which also does the transition.
+On Xorg they are set with feh.
 ```
 
 # Troubleshoots
